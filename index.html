@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Computer Vision 10 post read</title>
+<meta name="description" content="Computer Vision 10 post read: Siamese networks, contrastive and triplet loss, thresholds and splitting by person">
+<style>
+:root{
+  --v950:#1e0b4b;--v900:#2e1065;--v800:#4c1d95;--v700:#6d28d9;--v600:#7c3aed;--v500:#8b5cf6;
+  --v400:#a78bfa;--v300:#c4b5fd;--v200:#ddd6fe;--v100:#ede9fe;--v50:#f5f3ff;
+  --ink:#1f1637;--muted:#5a4f78;--line:#e4dcfa;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:#fff;color:var(--ink);font:17px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:Georgia,"Iowan Old Style","Times New Roman",serif;line-height:1.2;color:var(--v900);margin:0}
+h2{font-size:clamp(1.7rem,3.4vw,2.3rem);margin:0 0 .7rem}
+h3{font-size:1.35rem;margin:2.2rem 0 .5rem}
+h4{font-size:1.02rem;margin:1.2rem 0 .3rem;color:var(--v800)}
+p{margin:.75rem 0}
+p,ul,ol{max-width:70ch}
+li{margin:.3rem 0}
+a{color:var(--v700)}
+code{font:.88em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--v100);color:var(--v800);padding:.1em .35em;border-radius:5px}
+:focus-visible{outline:3px solid var(--v500);outline-offset:2px;border-radius:4px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:-999px;top:8px;background:var(--v900);color:#fff;padding:.5rem 1rem;z-index:100;border-radius:8px}
+.skip:focus{left:8px}
+
+/* header */
+.top{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .in{max-width:1040px;margin:0 auto;padding:.6rem 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font:700 1.05rem Georgia,serif;color:var(--v900);text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand i{width:18px;height:18px;border-radius:4px;background:conic-gradient(var(--v700) 25%,var(--v300) 0 50%,var(--v500) 0 75%,var(--v900) 0);display:inline-block}
+#bar{height:3px;background:var(--v600);width:0;transition:width .1s}
+.btn{font:600 .9rem system-ui,sans-serif;background:var(--v700);color:#fff;border:2px solid var(--v700);border-radius:10px;padding:7px 14px;cursor:pointer}
+.btn:hover{background:var(--v800);border-color:var(--v800)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--v700)}
+.btn.ghost:hover{background:var(--v50)}
+.btn.sm{padding:4px 10px;font-size:.82rem}
+#toc{position:absolute;right:max(20px,calc(50% - 520px));top:100%;width:min(360px,calc(100vw - 40px));max-height:70vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px -12px rgba(46,16,101,.35);padding:10px}
+#toc ol{list-style:none;margin:0;padding:0;max-width:none}
+#toc a{display:flex;gap:10px;padding:7px 10px;border-radius:8px;text-decoration:none;color:var(--ink);font-size:.95rem;line-height:1.35}
+#toc a b{color:var(--v600);font-variant-numeric:tabular-nums;min-width:1.6em}
+#toc a:hover,#toc a[aria-current=true]{background:var(--v100);color:var(--v900)}
+#toc a[aria-current=true]{font-weight:700}
+
+/* hero */
+.hero{color:#fff;padding:84px 20px 92px;background-color:var(--v900);
+  background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(135deg,var(--v950),var(--v700));
+  background-size:30px 30px,30px 30px,100% 100%}
+.hero .in{max-width:900px;margin:0 auto}
+.eyebrow{font:700 .78rem system-ui;letter-spacing:.14em;text-transform:uppercase;color:var(--v200)}
+.hero h1{color:#fff;font-size:clamp(2.3rem,6.5vw,4rem);margin:.4rem 0 1rem}
+.hero p{font-size:1.2rem;color:var(--v100);max-width:56ch}
+.hero .cta{margin-top:1.6rem;display:flex;gap:12px;flex-wrap:wrap}
+.hero .btn{background:#fff;color:var(--v800);border-color:#fff}
+.hero .btn.ghost{background:transparent;color:#fff;border-color:var(--v300)}
+
+/* sections */
+main section{padding:60px 20px;border-bottom:1px solid var(--line)}
+main section:nth-of-type(even){background:var(--v50)}
+main section>.in{max-width:940px;margin:0 auto}
+.kicker{display:inline-block;font:700 .78rem system-ui;letter-spacing:.14em;text-transform:uppercase;color:var(--v600);margin-bottom:.35rem}
+.callout{border-left:5px solid var(--v600);background:var(--v100);padding:12px 18px;border-radius:0 14px 14px 0;margin:1.2rem 0;max-width:70ch}
+.callout p{margin:.3rem 0}
+.note{font-size:.88rem;color:var(--muted)}
+.formula{font:italic 1.2rem Georgia,serif;text-align:center;background:var(--v900);color:#fff;border-radius:14px;padding:14px 18px;margin:16px 0;overflow-x:auto;max-width:none}
+.formula small{display:block;font:.8rem system-ui;color:var(--v200);font-style:normal;margin-top:4px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:16px 0}
+.card{border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:#fff}
+.card h4{margin:0 0 .3rem;font-size:1.05rem;color:var(--v900)}
+.card p{margin:.3rem 0;font-size:.97rem}
+.card.dark{background:var(--v900);color:#fff;border-color:var(--v900)}
+.card.dark h4{color:#fff}
+.tag{display:inline-block;font:700 .72rem system-ui;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--v100);color:var(--v800)}
+
+/* widgets */
+.widget{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin:24px 0;box-shadow:0 8px 26px -14px rgba(76,29,149,.35)}
+.wtag{display:inline-block;font:700 .7rem system-ui;letter-spacing:.1em;text-transform:uppercase;color:var(--v700);background:var(--v100);padding:5px 10px;border-radius:999px;margin-bottom:8px}
+.wtitle{font:700 1.12rem/1.3 Georgia,serif;color:var(--v900);margin:0 0 4px}
+.wdesc{color:var(--muted);font-size:.93rem;margin:0 0 12px;max-width:none}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:8px 0 14px}
+.seg{display:inline-flex;flex-wrap:wrap}
+.seg button{font:600 .85rem system-ui,sans-serif;border:1.5px solid var(--v300);background:#fff;color:var(--v800);padding:6px 12px;cursor:pointer;margin-left:-1.5px}
+.seg button:first-child{border-radius:10px 0 0 10px;margin-left:0}
+.seg button:last-child{border-radius:0 10px 10px 0}
+.seg button:only-child{border-radius:10px}
+.seg button:hover{background:var(--v50)}
+.seg button[aria-pressed=true]{background:var(--v700);border-color:var(--v700);color:#fff;position:relative;z-index:1}
+select,input[type=number]{font:inherit;font-size:.9rem;padding:6px 8px;border:1.5px solid var(--v300);border-radius:8px;background:#fff;color:var(--v900)}
+input[type=number]{width:92px}
+input[type=range]{accent-color:var(--v600)}
+label.sel,label.chk,label.fld{font-size:.88rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+label.fld{flex-direction:column;align-items:flex-start;gap:3px;font-weight:600}
+.mat{display:grid;gap:3px;grid-template-columns:repeat(var(--c),minmax(0,1fr))}
+.cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;text-align:center;font:600 clamp(.6rem,1.7vw,.88rem)/1.1 ui-monospace,Menlo,monospace;border-radius:6px;background:var(--v50);color:var(--v900);border:1.5px solid var(--v200);padding:0;margin:0}
+button.cell{cursor:pointer}
+button.cell:hover{border-color:var(--v700)}
+.cell.win{outline:3px solid var(--v900);outline-offset:-2px;z-index:1}
+.cell.pad{background:repeating-linear-gradient(45deg,#fff,#fff 4px,var(--v100) 4px,var(--v100) 8px);color:var(--muted);border-style:dashed}
+.cell.neg{border:2px dashed var(--v900)}
+.cell.cur{outline:3px solid var(--v900);outline-offset:-2px}
+.cell.on{background:var(--v700);color:#fff;border-color:var(--v700)}
+.cell.ghost{border:2px dashed var(--v700)}
+.cell.sel{outline:3px solid var(--v900);outline-offset:-2px}
+.bars{display:grid;gap:6px}
+.brow{display:grid;grid-template-columns:minmax(78px,150px) 1fr 62px;gap:10px;align-items:center;font-size:.9rem}
+.bl{font-weight:600;color:var(--v900)}
+.bt{background:var(--v100);border-radius:6px;height:16px;overflow:hidden;display:block}
+.bf{display:block;height:100%;background:var(--v700);border-radius:6px;transition:width .25s}
+.bv{font-variant-numeric:tabular-nums;text-align:right;color:var(--muted)}
+.readout{margin-top:12px;padding:10px 14px;background:var(--v50);border:1px solid var(--line);border-radius:12px;font-size:.93rem;max-width:none}
+.readout b{color:var(--v900)}
+.fig{margin:14px 0}
+.fig img{max-width:100%;height:auto;border-radius:12px;border:1px solid var(--line);display:block;margin:0 auto}
+.fig figcaption{font-size:.85rem;color:var(--muted);text-align:center;margin-top:6px}
+.fb{display:none;padding:18px;border:2px dashed var(--v300);border-radius:12px;color:var(--muted);font-size:.9rem;text-align:center}
+.fig.broken .fb{display:block}
+.fig.broken img{display:none}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+
+/* tabs */
+.tabs{margin:18px 0}
+.tablist{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--line);margin-bottom:14px}
+.tablist button{font:600 .92rem system-ui,sans-serif;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:9px 14px;cursor:pointer;margin-bottom:-2px;border-radius:8px 8px 0 0}
+.tablist button:hover{color:var(--v800);background:var(--v50)}
+.tablist button[aria-selected=true]{color:var(--v800);border-bottom-color:var(--v700);background:var(--v100)}
+[role=tabpanel]:focus-visible{outline-offset:6px}
+
+/* code + tables */
+details.code{border:1px solid var(--line);border-radius:12px;margin:14px 0;background:#fff;overflow:hidden}
+details.code summary{cursor:pointer;padding:10px 14px;font:600 .9rem system-ui;color:var(--v800);background:var(--v50)}
+details.code[open] summary{border-bottom:1px solid var(--line)}
+pre{margin:0;padding:14px 16px;overflow:auto;background:var(--v950);color:var(--v100);font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.tw{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--v100);color:var(--v900);font-weight:700}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+
+/* specific widgets */
+.pxwrap{display:grid;grid-template-columns:minmax(0,420px) 1fr;gap:20px;align-items:start}
+.pxgrid{gap:2px}
+.pxgrid .cell{border-radius:3px;border:0;font-size:clamp(.5rem,1.4vw,.68rem)}
+.vrow{display:flex;align-items:center;gap:8px;margin:5px 0}
+.vl{font-weight:800;color:var(--v800);width:44px;font-size:.82rem}
+.vcells{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px;flex:1}
+.vcells .cell{aspect-ratio:auto;height:34px;font-size:clamp(.55rem,1.5vw,.78rem)}
+.flat{display:grid;grid-template-columns:130px 1fr;gap:22px;align-items:start}
+.flat .mat{max-width:130px}
+.srow{display:grid;grid-template-columns:72px minmax(90px,1fr) 42px minmax(90px,1fr) 58px;gap:10px;align-items:center;margin:8px 0;font-size:.9rem}
+.srow input{width:100%}
+.zv{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+.mx{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start}
+.layers{list-style:none;margin:0;padding:0;max-width:none;display:grid;gap:6px}
+.lay{width:100%;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.9fr) minmax(0,1fr);gap:8px;align-items:center;text-align:left;font:inherit;font-size:.86rem;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--ink)}
+.lay:hover{border-color:var(--v400)}
+.lay[aria-pressed=true]{border-color:var(--v700);background:var(--v50);box-shadow:inset 4px 0 0 var(--v700)}
+.lay .ln{font-weight:700;color:var(--v900)}
+.lay .ls{color:var(--muted);font-variant-numeric:tabular-nums}
+.lay .lp{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
+.lay .lb{grid-column:1/-1;height:6px;background:var(--v100);border-radius:4px;overflow:hidden}
+.lay .lb i{display:block;height:100%;background:var(--v600)}
+.ldetail{background:var(--v900);color:#fff;border-radius:14px;padding:16px 18px;position:sticky;top:90px}
+.ldetail h4{color:#fff;margin:0 0 6px}
+.ldetail p{margin:.4rem 0;font-size:.92rem;color:var(--v100)}
+.ldetail code{background:rgba(255,255,255,.14);color:#fff}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin:6px 0}
+.legend i{display:inline-block;width:26px;height:0;border-top:3px solid var(--v900);vertical-align:middle;margin-right:6px}
+.plot{touch-action:pan-y;outline-offset:2px}
+.plot svg{width:100%;height:auto;display:block}
+.cx{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,.7fr) minmax(0,.7fr) minmax(0,1fr);gap:16px;align-items:start}
+.pl{font:700 .78rem system-ui;color:var(--v800);margin-bottom:6px;letter-spacing:.02em}
+.sum{margin-top:8px;font-size:.95rem}
+.stepbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:14px}
+.stepbar input[type=range]{flex:1;min-width:140px}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
+.stat{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff}
+.stat .k{font:700 .74rem system-ui;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font:700 1.7rem Georgia,serif;color:var(--v900)}
+.stat .s{font-size:.85rem;color:var(--muted)}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.vs div{padding:8px 10px;border-radius:10px;background:var(--v50)}
+.vs div.win{background:var(--v900);color:#fff}
+.vs small{display:block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.vs b{font:700 1.3rem Georgia,serif}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0;max-width:none}
+.flow span{background:#fff;border:1.5px solid var(--v300);color:var(--v900);padding:8px 12px;border-radius:10px;font:600 .9rem system-ui}
+.flow i{color:var(--v600);font-style:normal;font-weight:800}
+.cortex{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;align-items:stretch}
+.cortex .rl{font:700 .75rem system-ui;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center}
+.cortex button{font:inherit;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:10px 8px;cursor:pointer;text-align:center;color:var(--ink);font-size:.84rem}
+.cortex button:hover{border-color:var(--v400)}
+.cortex button[aria-pressed=true]{background:var(--v900);color:#fff;border-color:var(--v900)}
+.cortex svg{width:40px;height:40px;display:block;margin:0 auto 4px}
+.cortex button b{display:block;font-size:.86rem}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;cursor:pointer;background:#fff}
+.opt:hover{border-color:var(--v400)}
+.opt input{margin-top:5px;accent-color:var(--v700)}
+.opt.ok{background:var(--v900);color:#fff;border-color:var(--v900)}
+.opt.bad{border:2px dashed var(--v900);background:var(--v50)}
+.opt .mk{margin-left:auto;font-weight:700;font-size:.82rem;white-space:nowrap}
+fieldset{border:0;padding:0;margin:0}
+legend{font-weight:700;color:var(--v900);padding:0;margin-bottom:6px}
+.qa{display:flex;gap:10px;margin-top:10px}
+footer{background:var(--v950);color:var(--v200);text-align:center;padding:36px 20px;font:700 1rem Georgia,serif}
+footer small{display:block;font:.8rem system-ui;opacity:.7;margin-top:4px}
+
+@media (max-width:820px){
+  .pxwrap,.flat,.mx{grid-template-columns:1fr}
+  .cx{grid-template-columns:1fr 1fr}
+  .cx .pn-in{grid-column:1/-1}
+  .ldetail{position:static}
+  .cortex{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .cortex .rl{grid-column:1/-1}
+}
+@media (max-width:640px){
+  body{font-size:16px}
+  main section{padding:44px 16px}
+  .srow{grid-template-columns:72px 1fr 42px}
+  .srow .bt{grid-column:2}
+  .srow .bv{grid-column:3}
+  .brow{grid-template-columns:84px 1fr 54px}
+}
+/* L2 additions */
+.maps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.maps .mat{gap:2px}
+.maps .cell{border-radius:3px;border:0;font-size:clamp(.5rem,1.4vw,.72rem)}
+.mapbtn{border:2px solid transparent;background:none;border-radius:10px;padding:4px;cursor:pointer;text-align:left;font:inherit}
+.mapbtn:hover{border-color:var(--v300)}
+.mapbtn[aria-pressed=true]{border-color:var(--v700);background:var(--v50)}
+.outrow{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+.outrow .cell{width:34px;height:34px;aspect-ratio:auto;border-radius:5px;font-size:.7rem}
+.neurons{gap:3px;max-width:420px}
+.neurons .cell{border-radius:4px;border:0;font-size:0}
+.neurons .cell.on{background:var(--v700)}
+.neurons .cell.off{background:repeating-linear-gradient(45deg,#fff,#fff 3px,var(--v200) 3px,var(--v200) 6px);border:1.5px dashed var(--v300)}
+.meter{height:12px;background:var(--v100);border-radius:6px;overflow:hidden;margin:4px 0 10px}
+.meter i{display:block;height:100%;background:var(--v700);transition:width .2s}
+.meter.warn i{background:var(--v900)}
+.mrow{font-size:.9rem;color:var(--ink)}
+.mrow b{color:var(--v900)}
+.lsteps{list-style:none;counter-reset:s;padding:0;margin:12px 0;max-width:none;display:grid;gap:8px}
+.lsteps li{counter-increment:s;display:flex;gap:12px;align-items:center;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;background:#fff;margin:0}
+.lsteps li::before{content:counter(s);flex:none;width:28px;height:28px;border-radius:50%;background:var(--v700);color:#fff;display:flex;align-items:center;justify-content:center;font:700 .85rem system-ui}
+.lsteps li.skip{border-style:dashed;background:var(--v50);color:var(--muted)}
+.lsteps li.skip::before{background:var(--v300)}
+.lsteps li .tg{margin-left:auto;font:700 .72rem system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--v800);background:var(--v100);padding:3px 8px;border-radius:999px;white-space:nowrap}
+.augg{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}
+.augg figure{margin:0;text-align:center}
+.augg svg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#fff}
+.augg figcaption{font:600 .78rem system-ui;color:var(--muted);margin-top:4px}
+.vols{width:100%;height:auto;display:block;margin:6px 0 10px}
+.vols g[role=button]{cursor:pointer}
+.vols g:focus-visible{outline:none}
+.vols g:focus-visible rect:first-of-type{stroke-width:4}
+.rbars{display:grid;gap:8px}
+.rb{display:grid;grid-template-columns:minmax(120px,210px) 1fr 64px;gap:10px;align-items:center;text-align:left;font:inherit;font-size:.9rem;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--ink);width:100%}
+.rb:hover{border-color:var(--v400)}
+.rb[aria-pressed=true]{border-color:var(--v700);background:var(--v50);box-shadow:inset 4px 0 0 var(--v700)}
+.rb .bl{font-weight:700}
+.rb .bt{height:18px;position:relative}
+.rb .zone{position:absolute;top:0;bottom:0;left:0;background:repeating-linear-gradient(45deg,var(--v200),var(--v200) 3px,#fff 3px,#fff 6px);opacity:.9}
+.rb .bf{position:relative}
+.mt td,.mt th{text-align:center;padding:6px 8px}
+.mt td:first-child,.mt th:first-child{text-align:left}
+.yes{font-weight:800;color:var(--v700)}
+.no{color:var(--v300)}
+pre.prompt{white-space:pre-wrap;word-break:break-word;border-radius:12px;font-size:13px}
+.hint{font-size:.85rem;color:var(--muted)}
+.cardlink{display:inline-block;margin-top:.4rem;font-weight:700;font-size:.9rem}
+@media (max-width:640px){
+  .maps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rb{grid-template-columns:90px 1fr 54px}
+}
+td.hl{background:var(--v100);font-weight:700}
+label.sel{flex-wrap:wrap;max-width:100%}
+label.sel select{max-width:100%;min-width:0}
+@media (max-width:640px){label.sel{width:100%}label.sel select{width:100%}}
+.yes{white-space:nowrap}
+@media (max-width:640px){.plot svg text{font-size:19px}.vols text{font-size:18px}}
+p code,li code,td code{overflow-wrap:anywhere}
+@media (max-width:640px){.widget .tw th,.widget .tw td{padding:6px 5px;font-size:.74rem}}
+.readout pre{overflow-x:auto;max-width:100%}
+.seg{max-width:100%;flex-wrap:wrap}
+.brow{grid-template-columns:minmax(70px,150px) minmax(0,1fr) auto}.brow .bl{overflow-wrap:anywhere}
+.readout{overflow-wrap:anywhere}
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="#top"><i aria-hidden="true"></i>Computer Vision 10 post read</a>
+    <button class="btn ghost sm" id="tocBtn" aria-expanded="false" aria-controls="toc">Contents</button>
+  </div>
+  <div id="bar" aria-hidden="true"></div>
+  <nav id="toc" aria-label="Contents" hidden><ol></ol></nav>
+</header>
+
+<div class="hero" id="top">
+  <div class="in">
+    <div class="eyebrow">Deep Learning · Computer Vision</div>
+    <h1>Computer Vision 10 post read</h1>
+    <p>A bank has one sample signature from a new account holder. How can a neural network verify later signatures against it? A Siamese network learns whether two inputs match instead of naming a person. We build one on the BHSig260 signature dataset, train it with contrastive and triplet loss, choose a decision threshold, and compare the two losses.</p>
+    <div class="cta"><a class="btn" href="#problem">Start reading</a><a class="btn ghost" href="#triplet">Jump to triplet loss</a></div>
+  </div>
+</div>
+
+<main id="main">
+
+<section id="problem" data-title="Problem and why not a CNN">
+<div class="in">
+  <span class="kicker">01</span>
+  <h2>The problem: verifying a signature</h2>
+  <p>You are a data scientist at a bank. A new account holder joins, and you need to set up their signature for verification. You have <b>only one sample signature</b> from the member. How can you use a neural network to verify signatures?</p>
+  <div data-fig="bank"></div>
+  <div class="callout"><p><b>Task:</b> verify whether a signature is genuine or forged.</p></div>
+  <h3>Classification vs verification</h3>
+  <ul>
+    <li><b>Image classification</b> identifies the class of the object in an image.</li>
+    <li><b>Image verification</b> checks whether an image matches another image.</li>
+  </ul>
+  <h3>Identification vs verification</h3>
+  <p><b>Face identification</b> asks “who is this person?” and compares a new picture against K stored people (1-to-K). <b>Face verification</b> asks “is this person who they claim to be?” and compares against one stored person (1-to-1). Our signature task is a verification problem.</p>
+  <div data-fig="ident,verif"></div>
+  <div class="widget" data-w="id"></div>
+  <h3>Why not a traditional CNN?</h3>
+  <p>Suppose a company has 1,000 employees and wants face recognition to record attendance. A traditional classifier has two problems:</p>
+  <div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+    <div class="card"><span class="tag">1</span><h4>Data</h4><p>It needs many images of every employee, which is hard to collect, and a CNN trained on a handful of images per person learns weak features.</p></div>
+    <div class="card"><span class="tag">2</span><h4>Fixed output size</h4><p>The model has 1,000 output classes, one per employee. A new employee means K+1 outputs and retraining on K+1 classes, every time. This does not scale.</p></div>
+  </div>
+  <div class="widget" data-w="scale"></div>
+  <p>A <b>Siamese network</b> (a one-shot learning architecture) avoids this: it learns whether two inputs match, so a new person only needs one reference sample, with no retraining.</p>
+</div>
+</section>
+
+<section id="siamese" data-title="Siamese networks and losses">
+<div class="in">
+  <span class="kicker">02</span>
+  <h2>Siamese networks, one-shot learning and losses</h2>
+  <p>(<a href="https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf">Paper: Siamese Neural Networks for One-shot Image Recognition</a>.)</p>
+  <div data-fig="twin"></div>
+  <ul>
+    <li>A Siamese network has two or more identical subnetworks, also called twin or sister networks, with the same architecture, parameters and weights.</li>
+    <li>They take two different inputs, and each produces a feature vector (an embedding). The network compares the two embeddings to measure how similar the inputs are.</li>
+    <li>Because the weights are shared, an update to one branch is an update to the other.</li>
+  </ul>
+  <div class="widget" data-w="quiz" data-q="q1"></div>
+  <h3>Why “one-shot”?</h3>
+  <div data-fig="oneshot"></div>
+  <p>A one-shot model makes correct predictions with a single training example of each new class. A Siamese network is trained with supervision to learn general features that tell whether two inputs match. Once trained, it compares a new input with a single stored example of a class it never saw in training.</p>
+  <h3>Which loss?</h3>
+  <p>The network decides “same or different” from the distance between embeddings, so it trains on pairs or triplets with losses on those distances:</p>
+  <div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+    <div class="card"><span class="tag">Pairs</span><h4>Contrastive loss</h4><p>Pairs from the same class end up close; pairs from different classes end up far apart.</p></div>
+    <div class="card"><span class="tag">Triplets</span><h4>Triplet loss</h4><p>An anchor, a positive from its class and a negative from a different class.</p></div>
+  </div>
+  <div data-fig="cpair,tri"></div>
+  <p>A binary cross-entropy loss on a pair classifier also works, and the original Siamese paper used it. Contrastive and triplet loss shape the embedding space directly, so the embeddings can be reused to compare any new pair.</p>
+</div>
+</section>
+
+<section id="data" data-title="Data and splitting">
+<div class="in">
+  <span class="kicker">03</span>
+  <h2>Data: BHSig260 signatures</h2>
+  <ul>
+    <li>Two directories, Hindi and Bengali signatures; we use only the <b>Hindi</b> set: 160 people.</li>
+    <li>Each person has <b>24 genuine</b> and <b>30 forged</b> signatures (file name: <code>G</code> genuine, <code>F</code> forged), 8,640 images in all.</li>
+    <li>The file <code>Hindi_pairs.txt</code> lists 8,964 labelled pairs: a reference signature and a signature to check. A genuine–forged pair has label <b>0</b>; two genuine signatures have label <b>1</b>. That gives 6,480 pairs with label 0 and 2,484 with label 1.</li>
+  </ul>
+  <div data-fig="sigs"></div>
+  <details class="code"><summary>Code: setup and loading the dataset</summary><pre data-code="setup"></pre></details>
+  <h3>Preprocessing</h3>
+  <ul>
+    <li>Every image is converted to grayscale, resized to 180 × 180 and kept in memory as one array of shape (8640, 180, 180).</li>
+    <li>An index table maps each file to its row, and lists each person’s genuine and forged rows.</li>
+    <li>The pretrained backbone expects 3 channels, so at batch time the gray channel is repeated and normalized with the ImageNet mean and standard deviation: input shape (B, 3, 180, 180).</li>
+  </ul>
+  <details class="code"><summary>Code: preprocessing</summary><pre data-code="prep"></pre></details>
+  <h3>Splitting by person</h3>
+  <p>The bank scenario is a <b>new account holder</b> the model has never seen, so we hold out whole people: 70% for training (112), 15% for validation (24) to pick the distance threshold, and 15% for testing (24).</p>
+  <div class="widget" data-w="split"></div>
+  <details class="code"><summary>Code: person-level split</summary><pre data-code="split"></pre></details>
+  <div class="widget" data-w="quiz" data-q="q2"></div>
+</div>
+</section>
+
+<section id="embed" data-title="Embedding network">
+<div class="in">
+  <span class="kicker">04</span>
+  <h2>Pairs and the embedding network</h2>
+  <p>Each pair example is <code>(image_1, image_2, label)</code>: label 1 means both signatures are genuine (similar); label 0 means one is genuine and one forged (dissimilar). To keep training time reasonable, and to give both losses the same budget, each epoch uses a random sample of <b>10,000 training pairs</b> from the 6,972 available (313 batches of 32; 32 validation batches).</p>
+  <p>Because the twins share weights, we need only <b>one base CNN</b>, applied to both images. We use <b>ResNet-50</b>, pretrained with transfer learning, rather than building a CNN from scratch.</p>
+  <div class="widget" data-w="net"></div>
+  <p>The lecture’s check: embeddings of shape (32, 128), distances of shape (32,), embedding lengths 1.</p>
+  <details class="code"><summary>Code: pair loader, embedding network and distance</summary><pre data-code="embed"></pre></details>
+</div>
+</section>
+
+<section id="contrastive" data-title="Contrastive loss">
+<div class="in">
+  <span class="kicker">05</span>
+  <h2>Contrastive loss</h2>
+  <p>Contrastive loss (also called pairwise ranking loss) learns from <b>positive pairs</b> (same class) and <b>negative pairs</b> (different classes). It pulls positive embeddings together and pushes negative ones apart, up to a margin.</p>
+  <div data-fig="c1,c2"></div>
+  <div class="callout"><p><b>L = Y · D² + (1 − Y) · max(m − D, 0)²</b><br>Y: 1 for a similar pair, 0 for dissimilar. D: Euclidean distance between embeddings. m: margin (hyperparameter).</p></div>
+  <ul>
+    <li><b>Positive pair (Y = 1):</b> the loss is D², zero only when the embeddings coincide.</li>
+    <li><b>Negative pair (Y = 0):</b> the loss is positive only while D &lt; m. Beyond the margin it adds nothing, so easy negatives stop affecting training.</li>
+  </ul>
+  <div class="widget" data-w="cl"></div>
+  <div class="widget" data-w="quiz" data-q="q3"></div>
+  <h3>Training</h3>
+  <p>Adam (learning rate 1e-4), 6 epochs, the same <code>fit</code> loop later reused for triplets.</p>
+  <details class="code"><summary>Code: contrastive loss and training</summary><pre data-code="contrastive"></pre></details>
+  <div data-fig="cc"></div>
+</div>
+</section>
+
+<section id="threshold" data-title="Threshold and accuracy">
+<div class="in">
+  <span class="kicker">06</span>
+  <h2>From distance to decision</h2>
+  <p>A Siamese model outputs a distance. A signature is accepted as genuine when its distance to the reference is at most a <b>threshold</b>, chosen for best accuracy on the validation people and then used on the test people.</p>
+  <div class="callout"><p><b>Accuracy = (TP + TN) / (TP + TN + FP + FN)</b></p></div>
+  <ul>
+    <li><b>TP:</b> a genuine pair accepted as genuine. <b>TN:</b> a forged pair rejected as forged.</li>
+    <li><b>FP:</b> a forged pair accepted as genuine (a false accept). <b>FN:</b> a genuine pair rejected as forged (a false reject).</li>
+    <li>TP and TN are correct predictions; FP and FN are errors.</li>
+  </ul>
+  <p>In practice, the reference signature is embedded once and each new signature is compared with it.</p>
+  <div class="widget" data-w="thr"></div>
+  <details class="code"><summary>Code: confusion counts, threshold search and evaluation</summary><pre data-code="thresh"></pre></details>
+  <h3>Contrastive model results</h3>
+  <p>Always predicting the majority class gives 0.723 on the test pairs. The contrastive model: threshold 0.002, train accuracy 0.772, validation 0.722, <b>test 0.724</b>, test AUC 0.871.</p>
+  <div data-fig="cp"></div>
+  <p>In the lecture’s example the distance was 0.078 against a threshold of 0.002, so the model said “forged signature”.</p>
+  <p>Over the thresholds tried (0.6× to 1.4× the chosen one, 0.001 to 0.003) the lecture’s table shows a false accept rate of 0.0 and a false reject rate of 0.996 at every row: the model rejects almost every genuine pair, which is why test accuracy sits at the baseline.</p>
+  <h3>Equal error rate</h3>
+  <p>Verification systems are often summarised by the <b>equal error rate (EER)</b>: the error at the threshold where false accept rate equals false reject rate. It does not depend on a chosen threshold, so it is a fair way to compare models (here computed at the best possible threshold on the test pairs, so it is a diagnostic, not a deployable number). Contrastive model test EER: <b>0.237</b>.</p>
+  <div class="widget" data-w="quiz" data-q="q5"></div>
+</div>
+</section>
+
+<section id="triplet" data-title="Triplet loss">
+<div class="in">
+  <span class="kicker">07</span>
+  <h2>Triplet loss</h2>
+  <p>Contrastive loss treats every pair on its own, asking positives to be as close as possible. Triplet loss asks for something weaker and more relative: for the same anchor, the positive must be closer than the negative by a margin. Because it does not force same-class samples to collapse to one point, the embedding can keep natural variation inside a class. (Paper: <a href="https://arxiv.org/pdf/1503.03832.pdf">FaceNet</a>.)</p>
+  <div data-fig="t1"></div>
+  <ul>
+    <li><b>Anchor (A):</b> the reference. <b>Positive (P):</b> same class as the anchor. <b>Negative (N):</b> a different class.</li>
+    <li>We want d(A,P) &lt; d(A,N), with d the squared Euclidean distance between embeddings.</li>
+    <li>A margin α stops the network from squeezing all embeddings together: d(A,P) − d(A,N) + α &lt; 0.</li>
+  </ul>
+  <div class="callout"><p><b>L(A,P,N) = max(0, d(A,P) − d(A,N) + α)</b></p></div>
+  <div data-fig="t2,t3"></div>
+  <div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+    <div class="card"><span class="tag">Easy</span><h4>d(A,N) &gt; d(A,P) + α</h4><p>The negative is far enough. Loss is 0: nothing to learn.</p></div>
+    <div class="card"><span class="tag">Semi-hard</span><h4>d(A,P) &lt; d(A,N) &lt; d(A,P) + α</h4><p>Farther than the positive but inside the margin: positive loss.</p></div>
+    <div class="card"><span class="tag">Hard</span><h4>d(A,N) &lt; d(A,P)</h4><p>The negative is closer than the positive: large loss.</p></div>
+  </div>
+  <div class="widget" data-w="tri"></div>
+  <p>Which triplets are useful? Easy triplets give no gradient. Hard triplets give a strong signal, but training only on the very hardest can be unstable early on. Semi-hard triplets are often the most useful, and FaceNet selects semi-hard negatives. Triplet loss often gives good embeddings but needs careful choice of triplets.</p>
+  <div class="widget" data-w="quiz" data-q="q4"></div>
+  <details class="code"><summary>Code: triplet loss</summary><pre data-code="triplet"></pre></details>
+  <h3>Building triplets</h3>
+  <ul>
+    <li>Anchor and positive are two different genuine signatures of one person: 24 × 23 / 2 = <b>276</b> combinations per person.</li>
+    <li>The negative is a <b>forged signature of the same person</b>, picked at random each time. This matches the real task, where the opponent is a forger imitating that person; negatives from other people would be much easier than the real test.</li>
+    <li>Triplets are built only for training people: 112 × 276 = <b>30,912</b> training triplets (10,000 sampled per epoch, the same budget as the pair model). Validation triplets use fixed negatives so the validation loss is comparable between epochs: 24 × 276 = <b>6,624</b>, of which every 5th is used.</li>
+  </ul>
+  <div data-fig="trip"></div>
+  <h3>Training</h3>
+  <p>The same ResNet-50 embedding network with fresh weights; only the loss and the data change. Margin 0.5, 6 epochs. After training, <b>96.8%</b> of validation triplets still produced a non-zero loss.</p>
+  <details class="code"><summary>Code: triplet dataset, training and active-triplet share</summary><pre data-code="trtrain"></pre></details>
+  <div data-fig="tc"></div>
+  <h3>Checking the embeddings</h3>
+  <p>For each validation triplet, a good model gives a smaller anchor–positive distance than anchor–negative distance. Mean anchor–positive distance 0.098, mean anchor–negative 0.198, and anchor–positive is smaller in <b>81.1%</b> of triplets.</p>
+  <div data-fig="box"></div>
+</div>
+</section>
+
+<section id="compare" data-title="Comparing the losses">
+<div class="in">
+  <span class="kicker">08</span>
+  <h2>Comparing contrastive and triplet loss</h2>
+  <div class="widget" data-w="curves"></div>
+  <p>The triplet model, evaluated with the same procedure on the same pairs, reaches threshold 0.017 and <b>test accuracy 0.836</b>, test AUC 0.966.</p>
+  <div data-fig="tp"></div>
+  <div class="widget" data-w="compare"></div>
+  <ul>
+    <li>Train accuracy is measured on training people. Test accuracy uses people the model has never seen, so it is the number that matters for a new account holder.</li>
+    <li>AUC does not depend on the threshold; 0.5 means the distances carry no information.</li>
+    <li>Compare with the majority-class baseline (0.723): a model that barely beats it has not learned much.</li>
+  </ul>
+  <div data-fig="hist"></div>
+  <details class="code"><summary>Code: evaluating and comparing the models</summary><pre data-code="evalc"></pre></details>
+  <h3>Visualizing the embeddings</h3>
+  <p>A 2-D PCA of one test person’s genuine and forged embeddings. PCA squeezes 128 dimensions into 2, so distances in the picture only roughly reflect real embedding distances. Still, a good model separates the genuine cluster from the forged one.</p>
+  <div data-fig="pca"></div>
+  <details class="code"><summary>Code: embedding plot and signature checker</summary><pre data-code="viz"></pre></details>
+  <h3>Data shift</h3>
+  <p>The model was trained on scanned signatures with a plain background. Phone photos have shadows and different contrast, so worse behaviour is expected. That is a useful lesson about data shift. Ideas to improve a verifier include more data, augmentation or a better loss.</p>
+  <h3>Key takeaways</h3>
+  <div class="callout"><ul>
+    <li>A <b>Siamese network</b> has twin subnetworks with shared weights; it embeds two inputs and compares the embeddings with a distance, so new people can be verified from a single reference.</li>
+    <li><b>Contrastive loss</b> learns from pairs: it pulls similar pairs together and pushes dissimilar pairs apart, up to a margin. <b>Triplet loss</b> makes the anchor closer to the positive than the negative by a margin; easy triplets give no signal, so triplet choice matters.</li>
+    <li>Pick a threshold on validation data and report accuracy on held-out people. Lowering the threshold trades false accepts for false rejects.</li>
+    <li>Split by person, not by pair, when the goal is to verify people the model has never seen.</li>
+    <li>In this run, triplet loss beat contrastive loss on test accuracy (0.836 vs 0.724), AUC (0.966 vs 0.871) and EER (0.095 vs 0.237).</li>
+  </ul></div>
+</div>
+</section>
+
+</main>
+<footer>Computer Vision 10 post read<small>Interactive learning article</small></footer>
+
+<script>
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const fmt=n=>Number(n).toLocaleString('en-US');
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+let uid=0;
+function h(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild;}
+function mix(t){t=Math.max(0,Math.min(1,t));const a=[255,255,255],b=[109,40,217];return 'rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*t)).join(',')+')';}
+function ink(t){return t>0.5?'#fff':'#2e1065';}
+function shell(root,title,desc){root.classList.add('widget');root.innerHTML='<span class="wtag">Interactive</span><h4 class="wtitle">'+title+'</h4>'+(desc?'<p class="wdesc">'+desc+'</p>':'')+'<div class="wbody"></div>';return $('.wbody',root);}
+function seg(container,options,value,onChange,label){
+  const wrap=h('<div class="seg" role="group" aria-label="'+label+'"></div>');
+  function set(v){value=v;Array.from(wrap.children).forEach((b,i)=>b.setAttribute('aria-pressed',String(options[i].value===v)));}
+  options.forEach(o=>{const b=h('<button type="button" aria-pressed="false">'+o.label+'</button>');b.addEventListener('click',()=>{set(o.value);onChange(o.value);});wrap.appendChild(b);});
+  set(value);container.appendChild(wrap);return {set};
+}
+
+/* ---------- chart helper (inline SVG) ---------- */
+function niceMax(m){const st=m<=3?0.5:m<=6?1:2;return Math.ceil(m/st)*st;}
+function stepTicks(a,b,st){const t=[];for(let v=a;v<=b+1e-9;v+=st)t.push(+v.toFixed(6));return t;}
+function epochTicks(n){const st=n<=12?1:5,t=[1];for(let v=st;v<=n;v+=st)if(v>1)t.push(v);return t;}
+function chart(o){
+  const W=o.W||640,H=o.H||300,M=Object.assign({l:52,r:16,t:16,b:40},o.M||{});
+  const iw=W-M.l-M.r,ih=H-M.t-M.b,x0=o.x[0],x1=o.x[1],y0=o.y[0],y1=o.y[1];
+  const X=v=>M.l+(v-x0)/(x1-x0)*iw,Y=v=>M.t+ih-(v-y0)/(y1-y0)*ih;
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.label||'Chart')+'">';
+  (o.yt||[]).forEach(t=>{s+='<line x1="'+M.l+'" x2="'+(W-M.r)+'" y1="'+Y(t).toFixed(1)+'" y2="'+Y(t).toFixed(1)+'" stroke="#e4dcfa"/><text x="'+(M.l-8)+'" y="'+(Y(t)+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="#5a4f78">'+(o.yf?o.yf(t):t)+'</text>';});
+  (o.xt||[]).forEach(t=>{s+='<text x="'+X(t).toFixed(1)+'" y="'+(H-M.b+17)+'" text-anchor="middle" font-size="11" fill="#5a4f78">'+(o.xf?o.xf(t):t)+'</text>';});
+  s+='<line x1="'+M.l+'" x2="'+(W-M.r)+'" y1="'+(M.t+ih)+'" y2="'+(M.t+ih)+'" stroke="#a78bfa"/>';
+  if(o.xlabel)s+='<text x="'+(M.l+iw/2)+'" y="'+(H-5)+'" text-anchor="middle" font-size="12" font-weight="700" fill="#2e1065">'+esc(o.xlabel)+'</text>';
+  if(o.ylabel)s+='<text transform="translate(13 '+(M.t+ih/2)+') rotate(-90)" text-anchor="middle" font-size="12" font-weight="700" fill="#2e1065">'+esc(o.ylabel)+'</text>';
+  (o.hl||[]).forEach(v=>{s+='<line x1="'+M.l+'" x2="'+(W-M.r)+'" y1="'+Y(v.y).toFixed(1)+'" y2="'+Y(v.y).toFixed(1)+'" stroke="'+(v.c||'#a78bfa')+'" stroke-width="'+(v.w||1.5)+'"'+(v.d?' stroke-dasharray="'+v.d+'"':'')+'/>';});
+  (o.vl||[]).forEach(v=>{const x=X(v.x),right=x>W*0.7;s+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+M.t+'" y2="'+(M.t+ih)+'" stroke="'+(v.c||'#8b5cf6')+'" stroke-width="'+(v.w||1.5)+'" stroke-dasharray="'+(v.d||'4 4')+'"/>'+(v.label?'<text x="'+(x+(right?-4:4)).toFixed(1)+'" y="'+(M.t+11)+'" text-anchor="'+(right?'end':'start')+'" font-size="10.5" font-weight="700" fill="#4c1d95">'+esc(v.label)+'</text>':'');});
+  if(o.cur!=null){const x=X(o.cur).toFixed(1);s+='<line x1="'+x+'" x2="'+x+'" y1="'+M.t+'" y2="'+(M.t+ih)+'" stroke="#a78bfa" stroke-width="2"/>';}
+  (o.series||[]).forEach(se=>{
+    if(!se.pts.length)return;
+    s+='<path d="'+se.pts.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' ')+'" fill="none" stroke="'+se.c+'" stroke-width="'+(se.w||2.6)+'"'+(se.d?' stroke-dasharray="'+se.d+'"':'')+' stroke-linejoin="round"/>';
+    if(se.m)se.pts.forEach(p=>{const hi=o.cur!=null&&Math.abs(p[0]-o.cur)<1e-9,r=hi?6:3.4,x=X(p[0]),y=Y(p[1]);
+      if(se.m==='c')s+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r+'" fill="'+se.c+'"/>';
+      else if(se.m==='s')s+='<rect x="'+(x-r).toFixed(1)+'" y="'+(y-r).toFixed(1)+'" width="'+2*r+'" height="'+2*r+'" fill="#fff" stroke="'+se.c+'" stroke-width="2.2"/>';
+      else s+='<path d="M'+x.toFixed(1)+' '+(y-r-1).toFixed(1)+' L'+(x+r+1).toFixed(1)+' '+(y+r).toFixed(1)+' L'+(x-r-1).toFixed(1)+' '+(y+r).toFixed(1)+' Z" fill="#fff" stroke="'+se.c+'" stroke-width="2.2"/>';});
+  });
+  (o.dots||[]).forEach(d=>{s+='<circle cx="'+X(d.x).toFixed(1)+'" cy="'+Y(d.y).toFixed(1)+'" r="6" fill="'+d.c+'" stroke="#fff" stroke-width="2"/>';});
+  return s+'</svg>';
+}
+function legendHtml(S){return S.map(se=>'<span><i style="border-color:'+se.c+';'+(se.d?'border-top-style:dashed':'')+'"></i>'+se.n+'</span>').join('');}
+function fmtLR(v){return v.toFixed(6).replace(/0+$/,'').replace(/\.$/,'');}
+
+/* ---------- figures ---------- */
+const CF='https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/';
+function fig(path,alt,cap,w){
+  return '<figure class="fig"><img src="'+CF+path+'" alt="'+esc(alt)+'" loading="lazy"'+(w?' style="max-width:'+w+'px"':'')+' onerror="this.closest(\'.fig\').classList.add(\'broken\')"><div class="fb" role="note">Image not available offline. '+esc(alt)+'</div>'+(cap?'<figcaption>'+cap+'</figcaption>':'')+'</figure>';
+}
+/* ---------- tabs ---------- */
+function mountTabs(root,items){
+  root.classList.add('tabs');
+  const id='t'+(++uid),list=h('<div class="tablist" role="tablist"></div>'),tabs=[],panels=[];
+  items.forEach((it,i)=>{
+    const b=h('<button type="button" role="tab" id="'+id+'-t'+i+'" aria-controls="'+id+'-p'+i+'">'+it.label+'</button>');
+    const p=h('<div role="tabpanel" id="'+id+'-p'+i+'" aria-labelledby="'+id+'-t'+i+'" tabindex="0"></div>');
+    p.innerHTML=it.html;tabs.push(b);panels.push(p);list.appendChild(b);
+  });
+  root.append(list,...panels);
+  function sel(i,focus){tabs.forEach((b,j)=>{const on=i===j;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;panels[j].hidden=!on;});if(focus)tabs[i].focus();}
+  tabs.forEach((b,i)=>{
+    b.addEventListener('click',()=>sel(i));
+    b.addEventListener('keydown',e=>{
+      if(e.key==='ArrowRight'){e.preventDefault();sel((i+1)%tabs.length,true);}
+      else if(e.key==='ArrowLeft'){e.preventDefault();sel((i-1+tabs.length)%tabs.length,true);}
+      else if(e.key==='Home'){e.preventDefault();sel(0,true);}
+      else if(e.key==='End'){e.preventDefault();sel(tabs.length-1,true);}
+    });
+  });
+  sel(0);
+}
+const code=k=>'<pre data-code="'+k+'"></pre>';
+function wQuiz(root,key){
+  const d=QUIZ[key],name='q'+(++uid),L='abcd';
+  root.classList.add('widget');
+  root.innerHTML='<span class="wtag">Check your understanding</span><fieldset><legend>'+d.q+'</legend>'+d.c.map((c,i)=>'<label class="opt"><input type="radio" name="'+name+'" value="'+i+'"><span>'+(d.letters?L[i]+') ':'')+c+'</span><span class="mk"></span></label>').join('')+'</fieldset><div class="qa"><button type="button" class="btn" disabled>Check answer</button><button type="button" class="btn ghost" hidden>Try again</button></div><div class="readout" aria-live="polite" hidden></div>';
+  const [chk,again]=$$('.btn',root),out=$('.readout',root),opts=$$('.opt',root),radios=$$('input',root);
+  radios.forEach(r=>r.addEventListener('change',()=>{chk.disabled=false;}));
+  chk.addEventListener('click',()=>{
+    const v=radios.findIndex(r=>r.checked);if(v<0)return;
+    opts.forEach((o,i)=>{o.classList.remove('ok','bad');$('.mk',o).textContent='';if(i===d.a){o.classList.add('ok');$('.mk',o).textContent='✓ Correct answer';}else if(i===v){o.classList.add('bad');$('.mk',o).textContent='✗ Your choice';}});
+    out.hidden=false;out.innerHTML='<b>'+(v===d.a?'Correct.':'Not quite.')+'</b> '+d.e;
+    chk.hidden=true;again.hidden=false;radios.forEach(r=>r.disabled=true);
+  });
+  again.addEventListener('click',()=>{
+    opts.forEach(o=>{o.classList.remove('ok','bad');$('.mk',o).textContent='';});
+    radios.forEach(r=>{r.checked=false;r.disabled=false;});out.hidden=true;chk.hidden=false;chk.disabled=true;again.hidden=true;
+  });
+}
+
+/* ---------- contents + progress ---------- */
+function wToc(){
+  const secs=$$('main section[data-title]'),ol=$('#toc ol'),btn=$('#tocBtn'),toc=$('#toc');
+  ol.innerHTML=secs.map((s,i)=>'<li><a href="#'+s.id+'"><b>'+String(i+1).padStart(2,'0')+'</b><span>'+s.dataset.title+'</span></a></li>').join('');
+  function close(){toc.hidden=true;btn.setAttribute('aria-expanded','false');}
+  btn.addEventListener('click',()=>{const o=toc.hidden;toc.hidden=!o;btn.setAttribute('aria-expanded',String(o));});
+  ol.addEventListener('click',e=>{if(e.target.closest('a'))close();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!toc.hidden){close();btn.focus();}});
+  document.addEventListener('click',e=>{if(!toc.hidden&&!e.target.closest('#toc')&&!e.target.closest('#tocBtn'))close();});
+  const links=$$('a',ol);
+  if('IntersectionObserver' in window){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){links.forEach(l=>l.removeAttribute('aria-current'));const l=$('a[href="#'+en.target.id+'"]',ol);if(l)l.setAttribute('aria-current','true');}});},{rootMargin:'-30% 0px -60% 0px'});
+    secs.forEach(s=>io.observe(s));
+  }
+  const bar=$('#bar');
+  function prog(){const d=document.documentElement,t=d.scrollHeight-d.clientHeight;bar.style.width=(t>0?Math.min(100,d.scrollTop/t*100):0)+'%';}
+  window.addEventListener('scroll',prog,{passive:true});prog();
+}
+const mk=(n,m,f)=>Array.from({length:n},(_,i)=>Array.from({length:m},(_,j)=>f(i,j)));
+function corr(a,k){const kh=k.length,kw=k[0].length;return mk(a.length-kh+1,a[0].length-kw+1,(i,j)=>{let s=0;for(let p=0;p<kh;p++)for(let q=0;q<kw;q++)s+=a[i+p][j+q]*k[p][q];return s;});}
+const flip=k=>k.slice().reverse().map(r=>r.slice().reverse());
+function padM(a,p){return mk(a.length+2*p,a[0].length+2*p,(i,j)=>{const r=i-p,c=j-p;return r>=0&&r<a.length&&c>=0&&c<a[0].length?a[r][c]:0;});}
+const convFull=(a,k)=>corr(padM(a,k.length-1),flip(k));
+const r2=v=>Math.round(v*1e6)/1e6;
+function matHtml(m,o){o=o||{};return '<div class="mat" style="--c:'+m[0].length+(o.max?';max-width:'+o.max+'px':'')+'">'+m.map((r,i)=>r.map((v,j)=>'<div class="cell'+(o.cls?' '+o.cls(i,j,v):'')+'"'+(o.style?' style="'+o.style(i,j,v)+'"':'')+'>'+(o.fmt?o.fmt(v):r2(v))+'</div>').join('')).join('')+'</div>';}
+const heat=(m,v)=>'background:'+mix(Math.abs(v)/(m||1))+';color:'+ink(Math.abs(v)/(m||1));
+const P=fmt,pct=v=>(v*100).toFixed(1)+'%';
+const bar=(l,v,max,txt)=>'<div class="brow"><span class="bl">'+l+'</span><span class="bt"><span class="bf" style="width:'+Math.max(0.5,v/max*100)+'%"></span></span><span class="bv">'+txt+'</span></div>';
+const numF=(ctrl,label,val,cb,o)=>{o=o||{};const lab=h('<label class="fld">'+label+'<input type="number" value="'+val+'"'+(o.min!=null?' min="'+o.min+'"':'')+(o.max!=null?' max="'+o.max+'"':'')+(o.step?' step="'+o.step+'"':'')+'></label>');const i=$('input',lab);i.addEventListener('input',()=>{const v=parseFloat(i.value);if(!isNaN(v))cb(v);});ctrl.appendChild(lab);return i;};
+const FIGS={
+ bank:fig('250/949/original/1.png?1793625578','Signature verification at a bank','Verify a signature against one reference',520),
+ ident:fig('047/900/original/Screenshot_2023-09-12_at_11.22.09_AM.png?1694498029','Face identification, one to K','Identification: 1 to K',520),
+ verif:fig('047/901/original/Screenshot_2023-09-12_at_11.22.14_AM.png?1694498055','Face verification, one to one','Verification: 1 to 1',300),
+ twin:fig('250/950/original/2.png?1793625606','Siamese network with twin subnetworks','Twin subnetworks with shared weights',600),
+ oneshot:fig('250/951/original/3.png?1793625623','One-shot classification','One-shot classification',400),
+ cpair:fig('250/953/original/4.png?1793625669','Contrastive loss on pairs','Contrastive loss on pairs',520),
+ tri:fig('250/952/original/5.png?1793625643','Triplet loss with anchor, positive and negative','Triplet loss',600),
+ sigs:fig('251/195/original/Screenshot_2026-11-03_172224.png?1793706760','Two genuine signatures and one forged signature of one person','Genuine and forged signatures of one person',520),
+ c1:fig('250/954/original/1.png?1793625970','Contrastive loss pulls similar pairs together and pushes dissimilar pairs apart','Contrastive loss intuition',520),
+ c2:fig('250/955/original/2.png?1793625988','Contrastive loss as a function of distance','Contrastive loss vs distance',520),
+ cc:fig('251/196/original/Screenshot_2026-11-03_172746.png?1793707077','Contrastive training and validation loss','Contrastive loss training curves',520),
+ cp:fig('251/197/original/Screenshot_2026-11-03_172824.png?1793707114','A test pair with the contrastive model decision','Contrastive model on a test pair',520),
+ t1:fig('250/956/original/3.png?1793626016','Triplet loss definition','Triplet loss',520),
+ t2:fig('250/957/original/4.png?1793626036','Easy, semi-hard and hard triplets','Easy, semi-hard and hard triplets',520),
+ t3:fig('250/958/original/5.png?1793626154','Triplet loss during training','How triplet loss changes during training',520),
+ trip:fig('251/198/original/Screenshot_2026-11-03_172910.png?1793707161','An anchor, positive and negative signature','A training triplet',520),
+ tc:fig('251/199/original/Screenshot_2026-11-03_173057.png?1793707267','Triplet training and validation loss','Triplet loss training curves',520),
+ box:fig('251/200/original/Screenshot_2026-11-03_173138.png?1793707310','Anchor-positive and anchor-negative distance boxplots','Distances on validation triplets',520),
+ tp:fig('251/201/original/Screenshot_2026-11-03_173207.png?1793707338','A test pair with the triplet model decision','Triplet model on a test pair',520),
+ hist:fig('251/202/original/Screenshot_2026-11-03_173243.png?1793707379','Distance histograms for both models','Genuine vs forged distances for both models',520),
+ pca:fig('251/203/original/Screenshot_2026-11-03_173315.png?1793707405','PCA of one person’s signature embeddings under both losses','Embeddings of one test person',520)
+};
+const QUIZ={
+ q1:{q:'A Siamese network compares two signatures. Which statement about its two branches is correct?',letters:true,c:['Each branch has its own weights, and the two sets are averaged after every batch','The branches share an architecture but are trained separately on different halves of the pairs','Both branches use exactly the same weights, so only one set of parameters is learned','One branch handles genuine signatures and the other handles forged signatures'],a:2,e:'The two branches are twins with shared weights, so one set of parameters is learned and a single update affects both. Options A and B describe separate weights, and option D confuses the two inputs of a pair with two kinds of signature.'},
+ q2:{q:'A bank wants to know how well its verifier works for a brand-new account holder. How should the signatures be split into train and test?',letters:true,c:['Hold out whole people, so test signatures come from people the model never saw','Shuffle all pairs and split them at random, so every person appears in all three sets','Put only genuine signatures in the test set, because forgeries are rare in practice','Test on the training pairs, because their labels are the cleanest'],a:0,e:'A new account holder is someone the model has not seen, so the test set must contain unseen people. A random pair split leaks the same people into both sets and inflates the accuracy. Testing only on genuine signatures hides the forgery errors, and testing on training pairs measures memory, not generalization.'},
+ q3:{q:'A pair of different signatures (Y = 0) has an embedding distance D = 0.4. The margin is 1. What is the contrastive loss?',letters:true,c:['0.16','0.36','0.60','0.84'],a:1,e:'For Y = 0 the loss is max(m − D, 0)² = (1 − 0.4)² = 0.36. The value 0.16 is D², which applies to a similar pair. The value 0.60 forgets to square, and 0.84 is 1 − D².'},
+ q4:{q:'For one triplet, d(A,P) = 0.9 and d(A,N) = 1.1, and the margin is 0.5. Which statement is right?',letters:true,c:['Easy triplet with loss 0, because the negative is already farther than the positive','Hard triplet with loss 0.7, because the negative is closer than the positive','Hard triplet with loss 0.3, because the negative is too close to the anchor','Semi-hard triplet with loss 0.3: the negative is farther but inside the margin'],a:3,e:'The loss is max(0, 0.9 − 1.1 + 0.5) = 0.3. The negative is farther than the positive (1.1 > 0.9) but not beyond the margin (1.1 < 0.9 + 0.5 = 1.4), so the triplet is semi-hard. It is not easy because the loss is positive, and not hard because the negative is not closer than the positive.'},
+ q5:{q:'A bank lowers the distance threshold of its signature verifier. What is the most likely effect?',letters:true,c:['More forgeries get through, while fewer genuine signatures are rejected','Fewer forgeries get through, but more genuine signatures are rejected','False accepts and false rejects both go down at the same time','Nothing changes, because the threshold only matters during training'],a:1,e:'A signature is accepted only when its distance is at most the threshold. Lowering the threshold makes the test stricter, so fewer forgeries pass and more genuine signatures are turned away. Raising it does the opposite. The threshold is applied at decision time, and both error rates cannot fall together by moving it.'}
+};
+
+function wId(root){
+  const b=shell(root,'Identification vs verification','Choose the question the system answers, and how many people are stored.');
+  let m='id',K=1000;const ctrl=h('<div class="ctrl"></div>'),out=h('<div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,out,ro);
+  seg(ctrl,[{label:'Identification',value:'id'},{label:'Verification',value:'ver'}],m,v=>{m=v;draw();},'Task');
+  numF(ctrl,'People stored (K)',K,x=>{K=Math.max(1,Math.round(x));draw();},{min:1,step:1});
+  function draw(){const id=m==='id';out.innerHTML='<div class="card"><span class="tag">Question</span><p>'+(id?'<b>Who is this person?</b>':'<b>Is this person who they claim to be?</b>')+'</p></div><div class="card"><span class="tag">Comparison</span><p>'+(id?'The new picture against all <b>K = '+K.toLocaleString()+'</b> stored people (1-to-K).':'The new picture against <b>one</b> stored person (1-to-1).')+'</p></div><div class="card"><span class="tag">Our task</span><p>'+(id?'Not ours.':'<b>Signature verification</b> is a verification problem.')+'</p></div>';
+    ro.innerHTML=id?'Identification compares against every stored person: K = '+K.toLocaleString()+' comparisons per new picture (derived).':'Verification needs one comparison per new signature, against the claimed person’s reference.';}
+  draw();
+}
+
+function wScale(root){
+  const b=shell(root,'A new person joins','A classifier has one output per person; a Siamese network learns whether two inputs match.');
+  let m='cls',K=1000;const ctrl=h('<div class="ctrl"></div>'),out=h('<div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,out,ro);
+  seg(ctrl,[{label:'Traditional classifier',value:'cls'},{label:'Siamese network',value:'sia'}],m,v=>{m=v;draw();},'Model');
+  numF(ctrl,'People now (K)',K,x=>{K=Math.max(1,Math.round(x));draw();},{min:1,step:1});
+  function draw(){const c=m==='cls';out.innerHTML='<div class="card"><span class="tag">Before</span><p>'+(c?'<b>'+K.toLocaleString()+'</b> output neurons, one per person, trained on many images of each.':'One embedding network; compares <b>two inputs</b>.')+'</p></div><div class="card"><span class="tag">Person K+1 joins</span><p>'+(c?'Needs <b>'+(K+1).toLocaleString()+'</b> outputs: the system must be <b>retrained</b>.':'Store <b>one reference sample</b>. <b>No retraining.</b>')+'</p></div><div class="card"><span class="tag">Scales?</span><p>'+(c?'No: every new person repeats the whole training procedure.':'Yes: it handles new people with very little data (one-shot).')+'</p></div>';
+    ro.innerHTML=c?'A classifier also needs many images of every person; with only a handful it learns weak features.':'The network learns whether two inputs match, instead of learning to name a person.';}
+  draw();
+}
+
+function wSplit(root){
+  const b=shell(root,'Split by person, not by pair','Numbers from the lecture: 160 people, 8,964 labelled pairs.');
+  let m='p';const ctrl=h('<div class="ctrl"></div>'),out=h('<div class="bars"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,out,ro);
+  seg(ctrl,[{label:'Split by person',value:'p'},{label:'Random pair split',value:'r'}],m,v=>{m=v;draw();},'Split');
+  function draw(){if(m==='p')out.innerHTML=bar('Train: 112 people',112,160,'6,972 pairs')+bar('Validation: 24 people',24,160,'996 pairs')+bar('Test: 24 people',24,160,'996 pairs');else out.innerHTML=bar('Train people',160,160,'all 160 people appear')+bar('Validation people',160,160,'all 160 people appear')+bar('Test people',160,160,'all 160 people appear');
+    ro.innerHTML=m==='p'?'70% / 15% / 15% of the <b>people</b>. The bank’s case is a new account holder, so test people are never seen in training. The genuine-pair share is 0.277 in every split. Validation people choose the threshold; test people report accuracy.':'If pairs are split at random, the same person appears in train and test, so the model could score well by recognizing individual people and the test accuracy would be too optimistic. (Schematic of the problem; the lecture does not run this split.)';}
+  draw();
+}
+
+function wNet(root){
+  const b=shell(root,'The embedding network','The same network embeds both images, so only one set of weights exists. Step through it.');
+  const S=[['Input','A 180 × 180 grayscale image, repeated to 3 channels and normalized with the ImageNet mean and standard deviation.'],['ResNet-50 convolutional layers','Pretrained on ImageNet (50 layers, more than a million images; residual connections help very deep networks train). Early layers are frozen; the last block is fine-tuned. BatchNorm statistics stay fixed.'],['Global average pooling','Pools the feature map into a 2048-value vector.'],['Head','Linear (2048 → 256), batch norm, ReLU, dropout 0.2, linear (256 → 128): a 128-dimensional embedding.'],['L2 normalization','Every embedding gets length 1, so distances lie between 0 and 2 and margins and thresholds are comparable between the two losses.'],['Euclidean distance','The distance between the two embeddings is the output: small means the signatures match. A small constant inside the square root avoids an undefined gradient when two embeddings are identical.']];
+  let k=0;const bar_=h('<div class="stepbar"><button type="button" class="btn ghost sm" data-a="prev">◀ Prev</button><input type="range" min="0" max="5" value="0" aria-label="Stage"><button type="button" class="btn sm" data-a="next">Next ▶</button></div>'),fl=h('<div class="flow"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(bar_,fl,ro);
+  const rng=$('input',bar_);
+  function draw(){rng.value=k;fl.innerHTML=S.map((s,i)=>'<span'+(i===k?' style="background:var(--v900);color:#fff;border-color:var(--v900)"':'')+'>'+s[0]+'</span>').join('');ro.innerHTML='<b>'+(k+1)+'. '+S[k][0]+'.</b> '+S[k][1]+(k===3?'<br>Head parameters (computed): 524,544 + 512 + 32,896 = 557,952. With the fine-tuned last ResNet block, the lecture reports 15,522,688 trainable parameters (the block itself is therefore the remaining 14,964,736, derived).':'');}
+  bar_.addEventListener('click',e=>{const a=e.target.dataset.a;if(a==='prev')k=Math.max(0,k-1);else if(a==='next')k=Math.min(5,k+1);else return;draw();});rng.addEventListener('input',()=>{k=+rng.value;draw();});draw();
+}
+
+function wCL(root){
+  const b=shell(root,'Contrastive loss','L = Y·D² + (1 − Y)·max(m − D, 0)². Y = 1 for a similar pair, 0 for a dissimilar pair; D is the embedding distance; m is the margin.');
+  const v={y:0,d:.4,m:1};const ctrl=h('<div class="ctrl"></div>'),leg=h('<div class="legend"></div>'),pl=h('<div class="plot"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,leg,pl,ro);
+  seg(ctrl,[{label:'Similar (Y = 1)',value:1},{label:'Dissimilar (Y = 0)',value:0}],v.y,x=>{v.y=x;draw();},'Pair type');
+  numF(ctrl,'Distance D',v.d,x=>{v.d=Math.max(0,x);draw();},{min:0,step:.1});numF(ctrl,'Margin m',v.m,x=>{v.m=Math.max(.1,x);draw();},{min:.1,step:.1});
+  const L=(y,d)=>y?d*d:Math.pow(Math.max(v.m-d,0),2);
+  function draw(){const mx=Math.max(2,v.d*1.1),N=60,mk=y=>Array.from({length:N+1},(_,i)=>[mx*i/N,L(y,mx*i/N)]);const S=[{n:'Similar pair (Y = 1)',pts:mk(1).filter(p=>p[1]<=Math.max(1.5,v.m*v.m*1.3)),c:'#8b5cf6',d:'7 5'},{n:'Dissimilar pair (Y = 0)',pts:mk(0),c:'#2e1065',d:''}];
+    const ym=Math.max(1,v.m*v.m*1.3);leg.innerHTML=legendHtml(S);pl.innerHTML=chart({W:640,H:240,M:{l:50,r:16,t:16,b:40},x:[0,mx],y:[0,ym],xt:[0,mx/4,mx/2,mx*3/4,mx].map(z=>+z.toFixed(2)),yt:[0,ym/2,ym].map(z=>+z.toFixed(2)),yf:z=>z,xlabel:'Distance D',label:'Contrastive loss against distance for similar and dissimilar pairs',series:S});
+    const l=L(v.y,v.d);ro.innerHTML=v.y?'Similar pair: loss = D² = '+v.d+'² = <b>'+l.toFixed(4)+'</b>. It is zero only when the embeddings coincide.':'Dissimilar pair: loss = max('+v.m+' − '+v.d+', 0)² = <b>'+l.toFixed(4)+'</b>'+(v.d>=v.m?' — farther than the margin, so the pair adds nothing to training.':'.')+'<br>'+(v.d===.3&&v.m===1?'Lecture check at D = 0.3: similar 0.09, dissimilar 0.49.':v.d===.4&&v.m===1&&v.y===0?'Quiz 3: (1 − 0.4)² = 0.36.':'Try D = 0.3 and D = 0.4 with margin 1 to reproduce the lecture values.');}
+  draw();
+}
+
+function wTri(root){
+  const b=shell(root,'Easy, semi-hard or hard?','L = max(0, d(A,P) − d(A,N) + α). Enter the two distances and the margin α.');
+  const v={p:.9,n:1.1,m:.5};const ctrl=h('<div class="ctrl"></div>'),pre=h('<div class="ctrl"></div>'),out=h('<div></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(pre,ctrl,out,ro);
+  const I=[['p','d(A,P)'],['n','d(A,N)'],['m','Margin α']].map(([k,l])=>numF(ctrl,l,v[k],x=>{v[k]=Math.max(0,x);draw();},{min:0,step:.1}));
+  const PS=[[.5,1.5,.5],[.6,.7,.5],[1.2,.8,.5],[.9,1.1,.5]];const sg=h('<div class="seg" role="group" aria-label="Lecture examples"></div>');PS.forEach(p=>{const bt=h('<button type="button" aria-pressed="false">AP '+p[0]+' · AN '+p[1]+'</button>');bt.addEventListener('click',()=>{[v.p,v.n,v.m]=p;I.forEach((x,i)=>x.value=p[i]);draw();});sg.appendChild(bt);});pre.appendChild(sg);
+  function draw(){const {p,n,m}=v,loss=Math.max(0,p-n+m),kind=n>p+m?'easy':n<p?'hard':'semi-hard',mx=Math.max(p+m,n,1)*1.1,X=z=>20+z/mx*560;
+    $$('button',sg).forEach((x,i)=>x.setAttribute('aria-pressed',String(PS[i].join()===[p,n,m].join())));
+    out.innerHTML='<svg viewBox="0 0 600 90" role="img" aria-label="Number line of distances from the anchor: positive at '+p+', negative at '+n+', margin boundary at '+(p+m).toFixed(2)+'" style="width:100%"><line x1="20" y1="45" x2="580" y2="45" stroke="#c4b5fd" stroke-width="2"/><rect x="'+X(p)+'" y="30" width="'+(X(p+m)-X(p))+'" height="30" fill="#ede9fe"/><circle cx="20" cy="45" r="7" fill="#2e1065"/><text x="20" y="25" font-size="11" font-weight="700" fill="#2e1065">A</text><circle cx="'+X(p)+'" cy="45" r="7" fill="#7c3aed"/><text x="'+X(p)+'" y="80" font-size="11" text-anchor="middle" font-weight="700" fill="#4c1d95">P '+p+'</text><rect x="'+(X(n)-7)+'" y="38" width="14" height="14" fill="#fff" stroke="#2e1065" stroke-width="2.5"/><text x="'+X(n)+'" y="25" font-size="11" text-anchor="middle" font-weight="700" fill="#2e1065">N '+n+'</text><text x="'+X(p+m)+'" y="80" font-size="10" text-anchor="middle" fill="#6d5fa0">P + α = '+(p+m).toFixed(2)+'</text></svg><p class="note">Distance from the anchor (A). Shaded: the margin zone just beyond the positive.</p>';
+    ro.innerHTML='<b>'+kind+' triplet</b>, loss = max(0, '+p+' − '+n+' + '+m+') = <b>'+loss.toFixed(2)+'</b>.<br>'+({easy:'The negative is already beyond P + α, so the loss is 0: no gradient, nothing to learn.',hard:'The negative is closer to the anchor than the positive: a large loss.','semi-hard':'The negative is farther than the positive but inside the margin: positive loss. Semi-hard triplets are often the most useful (FaceNet selects them).'})[kind];}
+  draw();
+}
+
+function wThr(root){
+  const b=shell(root,'The threshold trade-off','A pair is accepted as genuine when its distance is at most the threshold. Move it and watch the two error rates. Illustrative curves, not the lecture’s data.');
+  let t=.5;const ctrl=h('<div class="ctrl"></div>'),out=h('<div></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,out,ro);
+  const rng=h('<label class="fld">Threshold <input type="range" min="0.05" max="1" step="0.01" value="0.5" aria-label="Distance threshold"></label>');ctrl.appendChild(rng);
+  const G=[.3,.12],F_=[.7,.15],pdf=(x,[m,s])=>Math.exp(-.5*((x-m)/s)**2)/(s*2.5066),cdf=(x,[m,s])=>.5*(1+erf((x-m)/(s*1.41421)));
+  function erf(x){const s=x<0?-1:1;x=Math.abs(x);const a=1/(1+.3275911*x);return s*(1-(((((1.061405429*a-1.453152027)*a)+1.421413741)*a-.284496736)*a+.254829592)*a*Math.exp(-x*x));}
+  function draw(){const Y=z=>150-z*22;let gp='',fp='';for(let i=0;i<=100;i++){const x=i/100*1.2;gp+=(i?'L':'M')+(20+x/1.2*560).toFixed(1)+' '+Y(pdf(x,G)).toFixed(1);fp+=(i?'L':'M')+(20+x/1.2*560).toFixed(1)+' '+Y(pdf(x,F_)).toFixed(1);}
+    const tx=20+t/1.2*560;
+    out.innerHTML='<svg viewBox="0 0 600 175" role="img" aria-label="Two overlapping distance distributions, genuine and forged, with a threshold line" style="width:100%"><path d="'+gp+'" fill="none" stroke="#2e1065" stroke-width="2.5"/><path d="'+fp+'" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-dasharray="7 5"/><line x1="'+tx+'" y1="10" x2="'+tx+'" y2="150" stroke="#000" stroke-width="2"/><text x="'+(tx+4)+'" y="20" font-size="11" font-weight="700">threshold '+t.toFixed(2)+'</text><line x1="20" y1="150" x2="580" y2="150" stroke="#c4b5fd"/><text x="20" y="168" font-size="10" fill="#6d5fa0">distance 0</text><text x="580" y="168" font-size="10" text-anchor="end" fill="#6d5fa0">1.2</text><text x="30" y="14" font-size="11" fill="#2e1065" font-weight="700">genuine (solid)</text><text x="470" y="40" font-size="11" fill="#6d28d9" font-weight="700">forged (dashed)</text></svg>';
+    const far=cdf(t,F_),frr=1-cdf(t,G);ro.innerHTML='Threshold '+t.toFixed(2)+': false accept rate (forgery accepted) <b>'+(far*100).toFixed(1)+'%</b>, false reject rate (genuine rejected) <b>'+(frr*100).toFixed(1)+'%</b>.<br>Lower the threshold: fewer forgeries get through, more genuine signatures are rejected (quiz 5). Raise it and the opposite happens. Which error costs more depends on the use: a bank can choose a stricter threshold for high-value cheques than for everyday transactions.<br><span class="note">The curves are two assumed normal distributions (genuine mean 0.3, forged mean 0.7) to show the trade-off, not model output.</span>';}
+  $('input',rng).addEventListener('input',e=>{t=+e.target.value;draw();});draw();
+}
+
+const CC={l:[.0456,.0130,.0077,.0061,.0081,.0035],v:[.4097,.2593,.2572,.2775,.3187,.3296]},TT={l:[.0585,.0130,.0147,.0044,.0082,.0038],v:[.3149,.3973,.4083,.3904,.4660,.4449]};
+function wCurves(root){
+  const b=shell(root,'Training logs: contrastive vs triplet','6 epochs each, 10,000 samples per epoch. Hover the chart or use ← → to read an epoch. Note that the two losses are different quantities.');
+  let met='v',idx=5;const ctrl=h('<div class="ctrl"></div>');seg(ctrl,[{label:'Validation loss',value:'v'},{label:'Train loss',value:'l'}],met,x=>{met=x;draw();},'Metric');
+  const leg=h('<div class="legend"></div>'),pl=h('<div class="plot" tabindex="0" role="group" aria-label="Training chart. Use left and right arrow keys to change epoch."></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,leg,pl,ro);
+  const W=640,M={l:56,r:16,t:16,b:40},pts=a=>a.map((v,i)=>[i+1,v]);
+  function draw(){const S=[{n:'Contrastive loss',pts:pts(CC[met]),c:'#2e1065',d:'',m:'c'},{n:'Triplet loss',pts:pts(TT[met]),c:'#8b5cf6',d:'7 5',m:'s'}],ym=met==='v'?.5:.07;
+    leg.innerHTML=legendHtml(S);pl.innerHTML=chart({W,H:250,M,x:[1,6],y:[0,ym],xt:[1,2,3,4,5,6],yt:met==='v'?[0,.1,.2,.3,.4,.5]:[0,.02,.04,.06],yf:z=>z,xlabel:'Epoch',label:(met==='v'?'Validation':'Train')+' loss per epoch for both models',series:S,cur:idx+1});
+    ro.innerHTML='<b>Epoch '+(idx+1)+'/6</b> — contrastive: loss '+CC.l[idx].toFixed(4)+', val_loss '+CC.v[idx].toFixed(4)+'<br>triplet: loss '+TT.l[idx].toFixed(4)+', val_loss '+TT.v[idx].toFixed(4)+'<br><span class="note">Both train losses fall to about 0.004 while validation loss stays much higher: the models fit training people far better than unseen ones. Triplet loss: 96.8% of validation triplets still had a non-zero loss at the end.</span>';}
+  function at(e){const r=pl.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*W;idx=Math.max(0,Math.min(5,Math.round(1+(x-M.l)/(W-M.l-M.r)*5)-1));draw();}
+  pl.addEventListener('pointermove',at);pl.addEventListener('pointerdown',at);pl.addEventListener('keydown',e=>{if(e.key==='ArrowRight'){idx=Math.min(5,idx+1);draw();e.preventDefault();}else if(e.key==='ArrowLeft'){idx=Math.max(0,idx-1);draw();e.preventDefault();}});draw();
+}
+
+function wCompare(root){
+  const b=shell(root,'Contrastive vs triplet on the test people','Same threshold procedure: threshold from validation people, accuracy on test people. The majority-class baseline on test pairs is 0.723.');
+  const D=[['Train accuracy',.772,.776,1],['Validation accuracy',.722,.799,1],['Test accuracy',.724,.836,1],['Test AUC',.871,.966,1],['Test EER (lower is better)',.237,.095,1]];
+  const out=h('<div class="bars"></div>'),ro=h('<div class="readout"></div>');b.append(out,ro);
+  out.innerHTML=D.map(r=>'<div style="margin:.5rem 0"><b>'+r[0]+'</b>'+bar('Contrastive',r[1],1,r[1].toFixed(3))+bar('Triplet',r[2],1,r[2].toFixed(3))+'</div>').join('');
+  ro.innerHTML='Thresholds: contrastive 0.002, triplet 0.017. Contrastive test accuracy (0.724) barely beats always predicting the majority class (0.723), so it has not learned much by that measure; its AUC (0.871) shows the distances do carry information. Triplet loss gains 0.112 test accuracy, 0.095 AUC and cuts EER by 0.142 (computed). Results change with the random split and training run, so treat small gaps with care.<br>Triplet check on validation triplets: mean anchor–positive distance 0.098 vs anchor–negative 0.198; anchor-positive was smaller in 81.1% of triplets.<br><span class="note">EER is computed at the best possible threshold on the test pairs, so it is a diagnostic, not a deployable number.</span>';
+}
+function fillCode(){$$('[data-code]').forEach(el=>{el.textContent=CODE[el.dataset.code]||'';});}
+const W={id:wId,scale:wScale,split:wSplit,net:wNet,cl:wCL,tri:wTri,thr:wThr,curves:wCurves,compare:wCompare};
+function init(){
+  $$('[data-fig]').forEach(el=>{el.innerHTML=el.dataset.fig.split(',').map(k=>FIGS[k]||'').join('');});
+  fillCode();
+  $$('[data-w]').forEach(el=>{const k=el.dataset.w;if(k==='quiz'){wQuiz(el,el.dataset.q);return;}if(W[k])W[k](el);});
+  wToc();
+}
+const CODE={"setup": "import os\nimport random\nimport itertools\nimport numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom PIL import Image\nfrom sklearn.decomposition import PCA\nfrom sklearn.metrics import roc_auc_score, roc_curve\n\nimport torch\nimport torch.nn as nn\nimport torch.nn.functional as F\nfrom torch.utils.data import Dataset, DataLoader, RandomSampler, Subset\nfrom torchvision import models\n\nrandom.seed(42)\nnp.random.seed(42)\ntorch.manual_seed(42)\ndevice = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\nprint('Using device:', device)\n\n!pip install -q gdown\n!gdown 0B29vNACcjvzVc1RfVkg5dUh2b1E\n!mkdir -p signatures\n!unzip -q BHSig260.zip -d signatures\n\npath = './signatures/BHSig260/Hindi/'\n\nwriters = sorted(next(os.walk(path))[1])          # one folder per person\ngenuine_files, forged_files = [], []\nfor w in writers:\n    files = [f'{path}{w}/{f}' for f in sorted(os.listdir(path + w))]\n    genuine_files.append([f for f in files if '-G-' in f])\n    forged_files.append([f for f in files if '-F-' in f])\n\nprint(len(writers), 'writers')\nprint('genuine per writer:', set(map(len, genuine_files)), '| forged per writer:', set(map(len, forged_files)))\n\npairs = pd.read_csv(path + 'Hindi_pairs.txt', delimiter=' ', header=None, names=['input', 'validation', 'label'])\nprint(pairs.shape)\nprint(pairs['label'].value_counts())\npairs.head()", "prep": "def show_signatures(w=None):\n    w = random.randrange(len(writers)) if w is None else w\n    g1, g2 = random.sample(genuine_files[w], 2)\n    f = random.choice(forged_files[w])\n    fig, ax = plt.subplots(1, 3, figsize=(12, 3))\n    for a, file, title in zip(ax, [g1, g2, f], ['Genuine', 'Genuine', 'Forged']):\n        a.imshow(Image.open(file).convert('L'), cmap='gray')\n        a.set_title(title)\n        a.axis('off')\n    plt.show()\n\nshow_signatures()\n\nimg_size = 180\n\ndef load_gray(file):\n    return np.asarray(Image.open(file).convert('L').resize((img_size, img_size)), dtype=np.uint8)\n\nall_files = [f for w in range(len(writers)) for f in genuine_files[w] + forged_files[w]]\nimages = np.stack([load_gray(f) for f in all_files])        # (N, 180, 180) uint8\nprint(images.shape)\n\nindex = {f: i for i, f in enumerate(all_files)}\ngen_idx = [[index[f] for f in fs] for fs in genuine_files]\nforg_idx = [[index[f] for f in fs] for fs in forged_files]\nprint('person 0: genuine rows', gen_idx[0][:4], '... forged rows', forg_idx[0][:4], '...')\n\nMEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)\nSTD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)\n\ndef to_input(x):\n    \"\"\"uint8 batch (B, H, W) -> normalized float tensor (B, 3, H, W) on the device.\"\"\"\n    x = torch.as_tensor(x).float().div(255).unsqueeze(1).repeat(1, 3, 1, 1)\n    return ((x - MEAN) / STD).to(device)\n\nprint(tuple(to_input(images[:4]).shape))", "split": "perm = np.random.default_rng(42).permutation(len(writers))\nn_train, n_val = int(0.7 * len(writers)), int(0.15 * len(writers))\nsplit_of = {int(w): 'train' if r < n_train else 'val' if r < n_train + n_val else 'test'\n            for r, w in enumerate(perm)}\ntrain_w, val_w, test_w = [[w for w in range(len(writers)) if split_of[w] == s] for s in ('train', 'val', 'test')]\nprint(len(train_w), len(val_w), len(test_w), 'people in train / val / test')\n\nwriter_pos = {name: i for i, name in enumerate(writers)}\npairs['a'] = pairs['input'].map(lambda f: index[path + f])\npairs['b'] = pairs['validation'].map(lambda f: index[path + f])\npairs['split'] = pairs['input'].str.split('/').str[0].map(lambda name: split_of[writer_pos[name]])\n\nprint(pairs.groupby('split')['label'].agg(['count', 'mean']).rename(columns={'mean': 'share_genuine_pairs'}))", "embed": "class PairDataset(Dataset):\n    def __init__(self, df):\n        self.a, self.b, self.y = df['a'].values, df['b'].values, df['label'].values\n\n    def __len__(self):\n        return len(self.y)\n\n    def __getitem__(self, i):\n        return images[self.a[i]], images[self.b[i]], self.y[i]\n\npair_train_ds = PairDataset(pairs[pairs['split'] == 'train'])\npair_train = DataLoader(pair_train_ds, batch_size=32, sampler=RandomSampler(pair_train_ds, num_samples=10000))\npair_val = DataLoader(PairDataset(pairs[pairs['split'] == 'val']), batch_size=32)\nprint(len(pair_train_ds), 'training pairs;', len(pair_train), 'batches per epoch;', len(pair_val), 'validation batches')\n\nclass EmbeddingNet(nn.Module):\n    def __init__(self, dim=128, pretrained=True, train_last_block=True):\n        super().__init__()\n        weights = models.ResNet50_Weights.IMAGENET1K_V1 if pretrained else None\n        resnet = models.resnet50(weights=weights)\n        self.backbone = nn.Sequential(*list(resnet.children())[:-2])    # conv layers only\n        for p in self.backbone.parameters():\n            p.requires_grad = False\n        if train_last_block:\n            for p in self.backbone[-1].parameters():                    # layer4\n                p.requires_grad = True\n        self.pool = nn.AdaptiveAvgPool2d(1)\n        self.head = nn.Sequential(nn.Linear(2048, 256), nn.BatchNorm1d(256), nn.ReLU(), nn.Dropout(0.2), nn.Linear(256, dim))\n\n    def train(self, mode=True):\n        super().train(mode)\n        self.backbone.eval()                  # keep BatchNorm statistics fixed\n        return self\n\n    def forward(self, x):\n        x = self.pool(self.backbone(x)).flatten(1)\n        return F.normalize(self.head(x), dim=1)\n\ndef euclidean_distance(a, b):\n    return torch.sqrt(((a - b) ** 2).sum(dim=1) + 1e-9)\n\n# One forward pass through the Siamese model\nnet = EmbeddingNet().to(device)\na, b, y = next(iter(pair_train))\nwith torch.no_grad():\n    ea, eb = net(to_input(a)), net(to_input(b))          # the same network embeds both images\nprint('embeddings:', tuple(ea.shape), '| distances:', tuple(euclidean_distance(ea, eb).shape))\nprint('embedding lengths (should be 1):', ea.norm(dim=1)[:3].cpu().numpy().round(3))\nprint('trainable parameters:', f\"{sum(p.numel() for p in net.parameters() if p.requires_grad):,}\")", "contrastive": "def contrastive_loss(dist, y, margin=1.0):\n    y = y.float()\n    return (y * dist ** 2 + (1 - y) * F.relu(margin - dist) ** 2).mean()\n\n# Try it: distance 0.3, as a similar pair (Y = 1) and as a dissimilar pair (Y = 0)\nd = torch.tensor([0.3])\nprint('similar pair   :', contrastive_loss(d, torch.tensor([1])).item())\nprint('dissimilar pair:', contrastive_loss(d, torch.tensor([0])).item())\n\ndef run_epoch(net, loader, step_fn, optimizer=None):\n    net.train(optimizer is not None)\n    total, count = 0.0, 0\n    for batch in loader:\n        with torch.set_grad_enabled(optimizer is not None):\n            loss = step_fn(net, batch)\n        if optimizer is not None:\n            optimizer.zero_grad()\n            loss.backward()\n            optimizer.step()\n        total += loss.item() * len(batch[0])\n        count += len(batch[0])\n    return total / count\n\ndef fit(net, train_loader, val_loader, step_fn, epochs, lr=1e-4):\n    opt = torch.optim.Adam([p for p in net.parameters() if p.requires_grad], lr=lr)\n    hist = {'loss': [], 'val_loss': []}\n    for epoch in range(epochs):\n        hist['loss'].append(run_epoch(net, train_loader, step_fn, opt))\n        hist['val_loss'].append(run_epoch(net, val_loader, step_fn))\n        print(f\"epoch {epoch + 1:2d}  loss {hist['loss'][-1]:.4f}  val_loss {hist['val_loss'][-1]:.4f}\")\n    return hist\n\ndef plot_history(hist, title):\n    plt.plot(hist['loss'], label='Train loss')\n    plt.plot(hist['val_loss'], label='Validation loss')\n    plt.title(title)\n    plt.legend()\n    plt.show()\n\ndef pair_step(net, batch):\n    a, b, y = batch\n    return contrastive_loss(euclidean_distance(net(to_input(a)), net(to_input(b))), y.to(device))\n\n\ncontrastive_net = EmbeddingNet().to(device)\n\nif os.path.exists('contrastive_net.pt'):\n    contrastive_net.load_state_dict(torch.load('contrastive_net.pt', map_location=device))\nelse:\n    hist_c = fit(contrastive_net, pair_train, pair_val, pair_step, epochs=6)\n    torch.save(contrastive_net.state_dict(), 'contrastive_net.pt')\n    plot_history(hist_c, 'Contrastive loss')", "thresh": "def confusion(dist, y, t):\n    pred = dist <= t                                   # predicted genuine\n    tp = np.sum(pred & (y == 1))\n    tn = np.sum(~pred & (y == 0))\n    fp = np.sum(pred & (y == 0))\n    fn = np.sum(~pred & (y == 1))\n    return tp, tn, fp, fn\n\ndef accuracy_at(dist, y, t):\n    tp, tn, fp, fn = confusion(dist, y, t)\n    return (tp + tn) / (tp + tn + fp + fn)\n\ndef best_threshold(dist, y, n_steps=200):\n    best_acc, best_t = 0.0, None\n    for t in np.linspace(dist.min(), dist.max(), n_steps):\n        acc = accuracy_at(dist, y, t)\n        if acc > best_acc:\n            best_acc, best_t = acc, t\n    return best_acc, best_t\n\ndef embed_all(net, batch_size=64):\n    net.eval()\n    out = []\n    with torch.no_grad():\n        for i in range(0, len(images), batch_size):\n            out.append(net(to_input(images[i:i + batch_size])).cpu().numpy())\n    return np.concatenate(out)\n\ndef evaluate(net):\n    E = embed_all(net)\n    d = np.linalg.norm(E[pairs['a'].values] - E[pairs['b'].values], axis=1)\n    y = pairs['label'].values\n    m = {s: (pairs['split'] == s).values for s in ('train', 'val', 'test')}\n    val_acc, thr = best_threshold(d[m['val']], y[m['val']])          # threshold from validation people\n    return {'embeddings': E, 'distances': d, 'threshold': thr,\n            'train_acc': accuracy_at(d[m['train']], y[m['train']], thr), 'val_acc': val_acc,\n            'test_acc': accuracy_at(d[m['test']], y[m['test']], thr),\n            'test_auc': roc_auc_score(y[m['test']], -d[m['test']])}\n\ny_test = pairs.loc[pairs['split'] == 'test', 'label'].values\nprint(f'Always predicting the majority class gives {max(y_test.mean(), 1 - y_test.mean()):.3f} on the test pairs')\n\nres_contrastive = evaluate(contrastive_net)\nprint({k: round(float(v), 3) for k, v in res_contrastive.items() if k not in ('embeddings', 'distances')})\n\ndef show_prediction(res, split='test'):\n    \"\"\"Pick a random pair from a split, show it, and print the model's decision.\"\"\"\n    row = pairs[pairs['split'] == split].sample(1).iloc[0]\n    dist = res['distances'][row.name]\n    fig, ax = plt.subplots(1, 2, figsize=(8, 3))\n    ax[0].imshow(images[row['a']], cmap='gray')\n    ax[0].set_title('Reference (genuine)')\n    ax[1].imshow(images[row['b']], cmap='gray')\n    ax[1].set_title('Genuine' if row['label'] == 1 else 'Forged')\n    for a in ax:\n        a.axis('off')\n    plt.show()\n    print(f\"Distance = {dist:.3f}, threshold = {res['threshold']:.3f}\")\n    print('Model says:', 'genuine signature' if dist <= res['threshold'] else 'forged signature')\n\nshow_prediction(res_contrastive)\n\ndef error_rates(res, split='test'):\n    m = (pairs['split'] == split).values\n    d, y = res['distances'][m], pairs['label'].values[m]\n    rows = []\n    for t in res['threshold'] * np.array([0.6, 0.8, 1.0, 1.2, 1.4]):\n        tp, tn, fp, fn = confusion(d, y, t)\n        rows.append({'threshold': round(float(t), 3),\n                     'false accept rate (forgery accepted)': round(fp / (fp + tn), 3),\n                     'false reject rate (genuine rejected)': round(fn / (fn + tp), 3)})\n    return pd.DataFrame(rows)\n\nerror_rates(res_contrastive)\n\ndef equal_error_rate(res, split='test'):\n    m = (pairs['split'] == split).values\n    fpr, tpr, _ = roc_curve(pairs['label'].values[m], -res['distances'][m])\n    frr = 1 - tpr\n    i = np.argmin(np.abs(fpr - frr))\n    return (fpr[i] + frr[i]) / 2\n\nprint(f'Contrastive model, test EER: {equal_error_rate(res_contrastive):.3f}')", "triplet": "MARGIN = 0.5\n\ndef triplet_loss(anchor, positive, negative, margin=MARGIN):\n    d_ap = ((anchor - positive) ** 2).sum(dim=1)       # squared distance, anchor to positive\n    d_an = ((anchor - negative) ** 2).sum(dim=1)       # squared distance, anchor to negative\n    return F.relu(d_ap - d_an + margin).mean()\n\ndef triplet_from_distances(d_ap, d_an, margin=MARGIN):\n    loss = max(0.0, d_ap - d_an + margin)\n    kind = 'easy' if d_an > d_ap + margin else 'hard' if d_an < d_ap else 'semi-hard'\n    return loss, kind\n\nfor d_ap, d_an in [(0.5, 1.5), (0.6, 0.7), (1.2, 0.8)]:\n    loss, kind = triplet_from_distances(d_ap, d_an)\n    print(f'd(A,P) = {d_ap}, d(A,N) = {d_an}: {kind} triplet, loss = {loss:.2f}')", "trtrain": "class TripletDataset(Dataset):\n    def __init__(self, writer_ids, fixed_negatives=False, seed=0):\n        self.ap = [(a, p, w) for w in writer_ids for a, p in itertools.combinations(gen_idx[w], 2)]\n        rng = random.Random(seed)\n        self.neg = [rng.choice(forg_idx[w]) for _, _, w in self.ap] if fixed_negatives else None\n\n    def __len__(self):\n        return len(self.ap)\n\n    def __getitem__(self, i):\n        a, p, w = self.ap[i]\n        n = self.neg[i] if self.neg is not None else random.choice(forg_idx[w])\n        return images[a], images[p], images[n]\n\ntriplet_train_ds = TripletDataset(train_w)\ntriplet_val_ds = TripletDataset(val_w, fixed_negatives=True)\n\n# Each epoch uses a random sample of 10000 training triplets (the same budget as the pair model),\n# and every 5th validation triplet\ntriplet_train = DataLoader(triplet_train_ds, batch_size=32,\n                           sampler=RandomSampler(triplet_train_ds, num_samples=10000))\ntriplet_val = DataLoader(Subset(triplet_val_ds, range(0, len(triplet_val_ds), 5)), batch_size=32)\nprint(len(triplet_train_ds), 'training triplets,', len(triplet_val_ds), 'validation triplets')\n\ndef show_triplet(ds):\n    a, p, n = ds[random.randrange(len(ds))]\n    fig, ax = plt.subplots(1, 3, figsize=(12, 3))\n    for axis, im, title in zip(ax, [a, p, n], ['Anchor (genuine)', 'Positive (genuine)', 'Negative (forged)']):\n        axis.imshow(im, cmap='gray')\n        axis.set_title(title)\n        axis.axis('off')\n    plt.show()\n\nshow_triplet(triplet_train_ds)\n\ndef triplet_step(net, batch):\n    anchor, positive, negative = (net(to_input(x)) for x in batch)\n    return triplet_loss(anchor, positive, negative)\n\ndef active_share(net, loader):\n    \"\"\"Share of triplets that still produce a loss (not easy).\"\"\"\n    net.eval()\n    active = total = 0\n    with torch.no_grad():\n        for batch in loader:\n            a, p, n = (net(to_input(x)) for x in batch)\n            loss = F.relu(((a - p) ** 2).sum(1) - ((a - n) ** 2).sum(1) + MARGIN)\n            active += (loss > 0).sum().item()\n            total += len(loss)\n    return active / total\n\ntriplet_net = EmbeddingNet().to(device)\n\nif os.path.exists('triplet_net.pt'):\n    triplet_net.load_state_dict(torch.load('triplet_net.pt', map_location=device))\nelse:\n    hist_t = fit(triplet_net, triplet_train, triplet_val, triplet_step, epochs=6)\n    torch.save(triplet_net.state_dict(), 'triplet_net.pt')\n    plot_history(hist_t, 'Triplet loss')\n\nprint(f'Validation triplets with a non-zero loss: {active_share(triplet_net, triplet_val):.1%}')\n\nval_triplets = [triplet_val_ds.ap[i] + (triplet_val_ds.neg[i],) for i in range(0, len(triplet_val_ds), 5)]\na_i, p_i, _, n_i = map(np.array, zip(*val_triplets))\nE = embed_all(triplet_net)\ndist_ap = np.linalg.norm(E[a_i] - E[p_i], axis=1)\ndist_an = np.linalg.norm(E[a_i] - E[n_i], axis=1)\n\nprint(f'Mean anchor-positive distance: {dist_ap.mean():.3f}')\nprint(f'Mean anchor-negative distance: {dist_an.mean():.3f}')\nprint(f'Triplets with anchor-positive < anchor-negative: {(dist_ap < dist_an).mean():.1%}')\n\nplt.boxplot([dist_ap, dist_an], vert=False)\nplt.yticks([1, 2], ['Anchor-positive', 'Anchor-negative'])\nplt.xlabel('Euclidean distance')\nplt.show()", "evalc": "res_triplet = evaluate(triplet_net)\nprint({k: round(float(v), 3) for k, v in res_triplet.items() if k not in ('embeddings', 'distances')})\nshow_prediction(res_triplet)\n\ntable = pd.DataFrame({\n    'Contrastive loss': res_contrastive,\n    'Triplet loss': res_triplet,\n}).loc[['threshold', 'train_acc', 'val_acc', 'test_acc', 'test_auc']].astype(float).round(3)\ntable.index = ['Threshold', 'Train accuracy', 'Validation accuracy', 'Test accuracy', 'Test AUC']\ntable.loc['Test EER (lower is better)'] = [round(equal_error_rate(res_contrastive), 3), round(equal_error_rate(res_triplet), 3)]\ntable\n\nfig, ax = plt.subplots(1, 2, figsize=(11, 3.5), sharey=True)\ntest_mask = (pairs['split'] == 'test').values\nfor a, name, res in zip(ax, ['Contrastive loss', 'Triplet loss'], [res_contrastive, res_triplet]):\n    d, y = res['distances'][test_mask], pairs['label'].values[test_mask]\n    a.hist(d[y == 1], bins=30, alpha=0.6, label='Genuine pairs')\n    a.hist(d[y == 0], bins=30, alpha=0.6, label='Genuine vs forged pairs')\n    a.axvline(res['threshold'], color='k', linestyle='--', label='Threshold')\n    a.set_title(name)\n    a.set_xlabel('Distance')\nax[0].legend()\nplt.show()", "viz": "def plot_writer_embeddings(res, w):\n    \"\"\"2D PCA of one person's genuine and forged signature embeddings.\"\"\"\n    E = res['embeddings']\n    idx = gen_idx[w] + forg_idx[w]\n    xy = PCA(n_components=2).fit_transform(E[idx])\n    n_gen = len(gen_idx[w])\n    plt.scatter(xy[:n_gen, 0], xy[:n_gen, 1], label='Genuine')\n    plt.scatter(xy[n_gen:, 0], xy[n_gen:, 1], label='Forged')\n    plt.legend()\n\nfig = plt.figure(figsize=(11, 4))\nfor k, (name, res) in enumerate([('Contrastive loss', res_contrastive), ('Triplet loss', res_triplet)]):\n    plt.subplot(1, 2, k + 1)\n    plot_writer_embeddings(res, test_w[0])\n    plt.title(f'{name}: one test person')\nplt.show()\n\ndef upload_signature(prompt):\n    from google.colab import files            # works only in Colab\n    print(prompt)\n    return load_gray(next(iter(files.upload())))\n\ndef compare_signatures(net, threshold):\n    ref = upload_signature('Upload the reference signature.')\n    test = upload_signature('Upload the signature to check.')\n    net.eval()\n    with torch.no_grad():\n        e_ref, e_test = net(to_input(ref[None])), net(to_input(test[None]))\n    dist = euclidean_distance(e_ref, e_test).item()\n\n    fig, ax = plt.subplots(1, 2, figsize=(8, 3))\n    for a, im, title in zip(ax, [ref, test], ['Reference', 'To check']):\n        a.imshow(im, cmap='gray')\n        a.set_title(title)\n        a.axis('off')\n    plt.show()\n    print(f'Distance = {dist:.3f}, threshold = {threshold:.3f}')\n    print('Model says:', 'genuine signature' if dist <= threshold else 'forged signature')\n\n# compare_signatures(triplet_net, res_triplet['threshold'])      # uncomment to try your own signatures (Colab only)"};
+init();
+
+})();
+</script>
+</body>
+</html>
